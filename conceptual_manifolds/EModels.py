@@ -1,18 +1,19 @@
-
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 import FrEIA.framework as Ff
 import FrEIA.modules as Fm
 
+import numpy as np
+
 from torch.distributions.multivariate_normal import MultivariateNormal
 from torch.distributions.beta import Beta
+
 def quadratic_formula(a,b,c):
     r = torch.sqrt(torch.square(b) - 4*a*c)
     x1 = (-b + r)/(2*a)
-    #x2 = (-b - r)/(2*a)
-    return x1.view(-1, 1)#, x2.view(-1, 1)
+    return x1.view(-1, 1)
 
 
 class PredicateTransform(nn.Module):
@@ -49,7 +50,7 @@ def sample_points_on_unit_sphere(n, dim):
     return y
 
 
-def rejection_sampling(n, dim, center, dist):
+def sample_within_unit_ball(n, dim, center, dist):
     assert dim == 2
     theta = torch.rand(n)*2*3.141592653589
     d = torch.stack((torch.sin(theta), torch.cos(theta)), dim=-1)
@@ -136,63 +137,13 @@ class EPredicate(nn.Module):
         return self.inverse(sphere)# - self.origin
     
     def sample(self, n=10):
-        sphere = rejection_sampling(n, self.dim, self.center, Beta(1, torch.tanh(self.beta) + 2))
+        sphere = sample_within_unit_ball(n, self.dim, self.center, Beta(1, torch.tanh(self.beta) + 2))
         return self.inverse(sphere)
     
     def sample_uniform(self, n=10):
         sphere = sample_points_on_unit_sphere(n, self.dim) * 0.95
         sphere *= torch.pow(torch.rand((n, 1)), 1/np.sqrt(2)).detach()
         return self.inverse(sphere)
-
-
-Or = lambda *x: torch.max(torch.stack(x, dim=0), dim=0).values
-And = lambda *x: torch.min(torch.stack(x,dim=0), dim=0).values
-
-def Or(*x):
-    x = torch.stack(x, dim=0)
-    return torch.mean(torch.topk(x, max(1, int(len(x)*0.25)), dim=0).values, dim=0)
-
-def And(*x):
-    x = torch.stack(x, dim=0)
-    return torch.mean(torch.topk(x, max(1, int(len(x)*0.25)), dim=0, largest=False).values, dim=0)
-
-Gen = lambda x, P: torch.mean(P(x))
-Not = lambda x: 1 - x
-
-samples = 200
-
-def Every(x, P, n=samples):
-    x = x.sample_uniform(n)
-    Q = P(x)
-    return And(*Q)
-
-def Each(x, P, n=samples):
-    x = x.sample_uniform(n)
-    Q = Or(P(x), Not(stuff['exists'](x)))
-    return And(*Q)
-
-def No(x, P, n=samples):
-    x = x.sample_uniform(n)
-    Q = Or(Not(P(x)), Not(stuff['exists'](x)))
-    return And(*Q)
-
-def ThereAre(P, n=samples):
-    return Or(*stuff['exists'](P.sample_uniform(n)))
-
-def Is(P, Q, n=samples):
-    sphere = sample_points_on_unit_sphere(n, 2)
-    ps = P.surface_given_sphere(sphere)
-    qs = Q.surface_given_sphere(sphere)
-    d = torch.norm(ps-qs, dim=-1)
-    return torch.mean(torch.exp(-d))
-
-def Similar(P, Q, R=None, n=samples, alpha=1.0):
-    x = P.sample(int(np.sqrt(n)))
-    y = Q.sample(int(np.sqrt(n)))
-    if R is None:
-        return torch.exp(-torch.cdist(x.view(1, -1, 2), y.view(1, -1, 2))).mean()
-    else:
-        return torch.exp(-R.distance(x, y)*alpha).mean()
 
 class EAdjective(nn.Module):
     def __init__(self, dim, depth=5, width=5, in_dim=None):
@@ -201,8 +152,8 @@ class EAdjective(nn.Module):
         self.width = width
         self.in_dim = in_dim
         if self.in_dim is None:
-            self.in_dim = self.dim 
-            
+            self.in_dim = self.dim
+
         l = [
                 nn.Linear(self.dim * 2, self.width),
                 nn.ReLU()
@@ -224,8 +175,6 @@ class EAdjective(nn.Module):
         if not self.training:
             return z == 0
         return torch.exp(-z)
-    
+
     def inverse(self, x):
         return self.transform.inverse(x)
-
-
