@@ -1,4 +1,7 @@
 import torch
+import numpy as np
+
+from conceptual_manifolds.EModels import sample_points_on_unit_sphere
 
 DEFAULT_SAMPLES = 200
 
@@ -29,17 +32,14 @@ def Is(P, Q, n=DEFAULT_SAMPLES):
     d = torch.norm(ps-qs, dim=-1)
     return torch.mean(torch.exp(-d))
 
-def MoreThan(R, a, b, relative=lambda x: x, samples=DEFAULT_SAMPLES, cutoff=0.9999):
+def MoreThan(R, a, b, relative=lambda x: x, samples=DEFAULT_SAMPLES, cutoff=0.75):
     a_samples = a.sample(samples)
     b_samples = b.sample(samples)
     d = R(a_samples, b_samples, relative).mean(dim=-1)
     d = torch.sigmoid(10.0*(d-cutoff))
     return d.mean()
 
-def Similar(P, Q, R=None, n=DEFAULT_SAMPLES):
+def Similar(P, Q, R, n=DEFAULT_SAMPLES):
     x = P.sample(int(np.sqrt(n)))
     y = Q.sample(int(np.sqrt(n)))
-    if R is None:
-        return torch.exp(-torch.cdist(x.view(1, -1, 2), y.view(1, -1, 2))).mean()
-    else:
-        return torch.exp(-R.distance(x, y)).mean()
+    return torch.exp(-R.distance(x, y)).mean()

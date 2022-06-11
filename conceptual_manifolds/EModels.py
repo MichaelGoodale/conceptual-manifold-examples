@@ -15,6 +15,10 @@ def quadratic_formula(a,b,c):
     x1 = (-b + r)/(2*a)
     return x1.view(-1, 1)
 
+def hyperbolic_cdist(a, b):
+    # TODO
+    return torch.log(x + z)
+
 
 class PredicateTransform(nn.Module):
     
@@ -67,8 +71,8 @@ class EPredicate(nn.Module):
         super(EPredicate, self).__init__()
         self.dim = dim
         self.beta = torch.nn.Parameter(torch.tensor(0.))
-        self.scale_ = torch.nn.Parameter(torch.tensor(1.0))
-        self.center_length_ = torch.nn.Parameter(torch.rand(1))
+        self.scale = 10.0
+        self.center_length_ = torch.nn.Parameter(torch.rand(1)*0.5)
         self.center_theta_ = torch.nn.Parameter(torch.rand(1)*2*3.14159265358979323)
         self.transform = PredicateTransform(self.dim, depth=depth, internal_width=width)
     
@@ -77,10 +81,6 @@ class EPredicate(nn.Module):
         direction = torch.cat((torch.sin(self.center_theta_), torch.cos(self.center_theta_)))
         return direction*0.75*torch.tanh(self.center_length_)
     
-    @property 
-    def scale(self):
-        return 10.0
-        
     def get_intersection_with_unit_sphere(self, y):
         d = y - self.center
         a = d.matmul(d.T).diagonal()
@@ -103,22 +103,22 @@ class EPredicate(nn.Module):
         return pairs
 
     def distance(self, x, y, resolution=25):
-        #pairs = self.get_draw_paths(x, y, resolution=resolution)
-        #a, b = pairs[:, :-1, :].contiguous(), pairs[:, 1:, :].contiguous()
-        #return F.pairwise_distance(a,b).sum(dim=-1)
         z = torch.vstack((x, y))
         z = self.transform(z)
         f_x = z[:len(x), :]
         f_y = z[len(x):, :]
         return torch.cdist(f_x, f_y)
+
+
+
     
     def forward(self, X):
         if not self.training:
             return self.get_value(X)
         y = self.transform(X) 
         p = self.get_intersection_with_unit_sphere(y)
+
         return torch.sigmoid(self.scale*((p-self.center).norm(dim=-1) - (y-self.center).norm(dim=-1)))
-        #return torch.exp(((p-self.center).norm(dim=-1) - (y-self.center).norm(dim=-1)))
         
         
     def get_value(self, X):
