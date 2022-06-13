@@ -10,8 +10,8 @@ import conceptual_manifolds.language as lg
 from conceptual_manifolds.train import train_model
 from conceptual_manifolds.plots import generate_plot
 
-D = 2
-W = 8
+D = 4
+W = 20
 
 stuff = {
     'jim': EModels.EPredicate(2, depth=D, width=W),
@@ -39,5 +39,5 @@ def get_props(stuff, adjs):
     prop.append(lg.MuSample(stuff['john'], stuff['fighter']))
     return prop
 
-stuff, adjs = train_model(stuff, adjs, get_props)
+stuff, adjs = train_model(stuff, adjs, get_props, N=1000)
 generate_plot(stuff, adjs, draw_distribution=[], line_from_to=('john', 'jim'), line_categories=['people', 'fighter'])

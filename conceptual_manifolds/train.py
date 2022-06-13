@@ -10,7 +10,8 @@ import conceptual_manifolds.EModels
 import conceptual_manifolds.language 
 
 def train_model(stuff, adjs, props_function, N=1000, lr=0.003):
-    optimizer = torch.optim.Adam(sum([list(x.parameters()) for _, x in chain(stuff.items(), adjs.items())], []), lr=lr)
+    params = sum([list(x.parameters()) for _, x in chain(stuff.items(), adjs.items())], [])
+    optimizer = torch.optim.Adam(params, lr=lr)
     loss_fn = torch.nn.BCEWithLogitsLoss()
 
     avg_loss = 0

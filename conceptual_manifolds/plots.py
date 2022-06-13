@@ -10,11 +10,13 @@ def generate_plot(stuff, adjs,
         draw_distribution = None,
         line_from_to = None,
         line_categories = None,
+        draw_functions = {},
+        exclude = [],
         N_lines = 1,
         ):
     with torch.no_grad():
         n = 5000
-        names = stuff.keys()
+        names = list(filter(lambda x: x not in exclude, stuff.keys()))
         df = pd.DataFrame(torch.cat([stuff[k].sample(n).detach() for k in names]))
         df['category'] = sum([[s]*n for s in names], [])
 
@@ -47,6 +49,10 @@ def generate_plot(stuff, adjs,
                              linewidth=4,
                              legend=False, estimator=None,sort=False)
 
+        for (name, cmap), func in draw_functions.items():
+            mesh = torch.cartesian_prod(torch.linspace(-2.6, 2.6, 100), torch.linspace(-2.6, 2.6, 100))
+            mesh = func(mesh)
+            plt.imshow(mesh.view(100, 100), extent=(-2.6, 2.6, -2.6, 2.6), origin='lower', interpolation='gaussian', label=name, alpha=0.75, cmap=plt.get_cmap(cmap))
         plt.xlim(-2.5, 2.5)
         plt.ylim(-2.5, 2.5)
         plt.show()

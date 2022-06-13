@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 import numpy as np
 
 from conceptual_manifolds.EModels import sample_points_on_unit_sphere
@@ -32,12 +33,18 @@ def Is(P, Q, n=DEFAULT_SAMPLES):
     d = torch.norm(ps-qs, dim=-1)
     return torch.mean(torch.exp(-d))
 
+
 def MoreThan(R, a, b, relative=lambda x: x, samples=DEFAULT_SAMPLES, cutoff=0.75):
-    a_samples = a.sample(samples)
+    if not torch.is_tensor(a):
+        a_samples = a.sample(samples)
+    else:
+        a_samples = a
     b_samples = b.sample(samples)
-    d = R(a_samples, b_samples, relative).mean(dim=-1)
-    d = torch.sigmoid(10.0*(d-cutoff))
-    return d.mean()
+    d = R(b_samples, a_samples, relative)
+    return torch.exp(-d).mean(dim=0)
+
+def Pos(R, a, scale, relative, samples=DEFAULT_SAMPLES, cutoff=0.75):
+    return MoreThan(R, a, scale, lambda x: relative.transform(x), samples, cutoff)
 
 def Similar(P, Q, R, n=DEFAULT_SAMPLES):
     x = P.sample(int(np.sqrt(n)))

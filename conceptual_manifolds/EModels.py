@@ -108,9 +108,6 @@ class EPredicate(nn.Module):
         f_x = z[:len(x), :]
         f_y = z[len(x):, :]
         return torch.cdist(f_x, f_y)
-
-
-
     
     def forward(self, X):
         if not self.training:
@@ -119,7 +116,6 @@ class EPredicate(nn.Module):
         p = self.get_intersection_with_unit_sphere(y)
 
         return torch.sigmoid(self.scale*((p-self.center).norm(dim=-1) - (y-self.center).norm(dim=-1)))
-        
         
     def get_value(self, X):
         y = self.transform(X)
@@ -154,8 +150,9 @@ class EAdjective(nn.Module):
         if self.in_dim is None:
             self.in_dim = self.dim
 
+
         l = [
-                nn.Linear(self.dim * 2, self.width),
+                nn.Linear(self.dim, self.width),
                 nn.ReLU()
             ] + \
             max(0, depth-2)*[
@@ -169,12 +166,13 @@ class EAdjective(nn.Module):
         self.transform = nn.Sequential(*l)
 
     def forward(self, x, y, relative=lambda x: x):
-        x = self.transform(torch.cat((x, relative(torch.rand_like(x))), dim=-1))
-        y = self.transform(torch.cat((y, relative(torch.rand_like(y))), dim=-1))
-        z = F.relu(y.view(1, -1, self.in_dim) - x.view(-1, 1, self.in_dim)) ** 2
+        x = self.transform(x)
+        y = self.transform(y)
+        z = F.relu(y.view(1, -1, self.in_dim) - x.view(-1, 1, self.in_dim))
+        z = torch.norm(z, dim=-1) ** 2
         if not self.training:
             return z == 0
-        return torch.exp(-z)
+        return z
 
     def inverse(self, x):
         return self.transform.inverse(x)
